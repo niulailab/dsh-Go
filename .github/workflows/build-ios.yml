@@ -34,6 +34,7 @@ jobs:
         working-directory: app
         run: flutter build ios --release --no-codesign
       - name: Unsign + package
+        working-directory: app
         run: |
           set -e
           mkdir -p out
