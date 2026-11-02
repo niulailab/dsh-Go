@@ -51,12 +51,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: dsh-go-ios-unsigned-ipa
-          path: out/dsh-go-ios-unsigned.ipa
+          path: app/out/dsh-go-ios-unsigned.ipa
           retention-days: 30
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: dsh-go-ios-runner-app
-          path: out/payload/Payload/Runner.app
+          path: app/out/payload/Payload/Runner.app
           retention-days: 7
           if-no-files-found: warn
