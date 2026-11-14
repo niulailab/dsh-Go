@@ -53,11 +53,13 @@ jobs:
             --build-name=1.0.12 --build-number=${{ github.run_number }}
           cd ios && pod install --repo-update
           cd ..
+          # 列出可用 destination，便于诊断
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -showdestinations || true
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath build/ios_dd \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
