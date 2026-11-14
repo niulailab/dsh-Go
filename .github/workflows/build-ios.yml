@@ -20,11 +20,15 @@ jobs:
       - name: Verify Xcode
         run: xcodebuild -version
 
-      - name: Install iOS platform SDK
+      - name: Verify iOS SDK present
         run: |
-          # Xcode 16 起 iOS 平台包不再随 Xcode 预装只需按需下载
-          sudo xcodebuild -downloadPlatform iOS || sudo xcodebuild -downloadPlatform iOS
-          xcodebuild -showsdks | grep -i iphoneos || true
+          # macos-15 runner 的 Xcode 16.2 不自带 iOS 平台包；
+          # 若缺失则下载（失败不阻断，后续 xcodebuild 会给出更具体的错）
+          if ! xcodebuild -showsdks 2>/dev/null | grep -q iphoneos; then
+            echo "iOS SDK missing, downloading..."
+            sudo xcodebuild -downloadPlatform iOS || true
+          fi
+          xcodebuild -showsdks
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -53,7 +57,7 @@ jobs:
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -destination 'generic/platform=iOS' \
+            -sdk iphoneos \
             -derivedDataPath build/ios_dd \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
