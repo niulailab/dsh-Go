@@ -34,15 +34,37 @@ jobs:
         working-directory: app
         run: flutter pub get
 
-      - name: Build unsigned iOS
+      - name: Build unsigned IPA (xcodebuild, no signing)
         working-directory: app
-        run: flutter build ios --release --no-codesign --build-name=1.0.12 --build-number=${{ github.run_number }}
+        run: |
+          set -o pipefail
+          # 先让 Flutter 生成 App.framework / flutter_assets / Generated.xcconfig
+          flutter build ios --release --no-codesign --config-only \
+            --build-name=1.0.12 --build-number=${{ github.run_number }}
+          cd ios && pod install --repo-update
+          cd ..
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/ios_dd \
+            -archivePath build/Runner.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build
 
       - name: Package unsigned IPA
         working-directory: app
         run: |
-          mkdir -p build/Payload
-          cp -r build/ios/iphoneos/Runner.app build/Payload/Runner.app
+          APP=$(find build/ios_dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' | head -1)
+          echo "APP=$APP"
+          test -d "$APP" || { echo "Runner.app not found"; exit 1; }
+          rm -rf build/Payload && mkdir -p build/Payload
+          cp -r "$APP" build/Payload/Runner.app
           cd build && zip -qry dsh-ios-unsign.ipa Payload
           ls -lh dsh-ios-unsign.ipa
 
