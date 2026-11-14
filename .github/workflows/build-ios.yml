@@ -42,23 +42,33 @@ jobs:
       - name: Build unsigned IPA (Flutter + no signing)
         working-directory: app
         run: |
-          # Flutter 在构建完成后会做一次 "需要 Development Team" 的检查并返回非 0，
-          # 但此时 Runner.app 已编译完成。因此忽略退出码，改为校验产物是否存在。
-          flutter build ios --release --no-codesign \
-            --build-name=1.0.12 --build-number=${{ github.run_number }} \
-            --no-pub || echo "flutter build returned non-zero (expected: no signing team)"
-          echo "--- artifacts ---"
-          ls -la build/ios/iphoneos/ 2>/dev/null || true
-          test -d build/ios/iphoneos/Runner.app || {
-            echo "Runner.app missing — build truly failed"
-            exit 1
-          }
-          echo "Runner.app OK"
+          # 1) 让 Flutter 生成 App.framework / flutter_assets / Generated.xcconfig / SPM 包
+          flutter build ios --release --no-codesign --config-only \
+            --build-name=1.0.12 --build-number=${{ github.run_number }} || true
+
+          # 2) xcodebuild 直接构建（Flutter 自身的签名检查会误判，绕过）
+          set -x
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios_dd \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            build
+          set +x
+          echo "--- products ---"
+          find build/ios_dd/Build/Products -maxdepth 2 -name '*.app' -o -maxdepth 2 -name '*.framework' | head
 
       - name: Package unsigned IPA
         working-directory: app
         run: |
-          APP=build/ios/iphoneos/Runner.app
+          APP=$(find build/ios_dd/Build/Products/Release-iphoneos -maxdepth 1 -name 'Runner.app' | head -1)
+          [ -n "$APP" ] || APP=build/ios/iphoneos/Runner.app
           echo "APP=$APP"
           test -d "$APP" || { echo "Runner.app not found"; exit 1; }
           rm -rf build/Payload && mkdir -p build/Payload
