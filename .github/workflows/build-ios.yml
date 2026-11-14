@@ -13,20 +13,18 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 90
     env:
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
-
-      - name: List available Xcodes
-        run: ls -d /Applications/Xcode*.app 2>/dev/null || true
 
       - name: Verify Xcode
         run: xcodebuild -version
 
       - name: Check iOS SDK
         run: |
-          xcodebuild -showsdks
-          ls /Applications/Xcode_16.2.app/Contents/Developer/Platforms/
+          xcodebuild -version
+          xcodebuild -showsdks | grep -i -A2 'iOS SDKs'
+          xcrun simctl list runtimes 2>/dev/null | grep -i ios || true
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -56,25 +54,22 @@ jobs:
             -scheme Runner \
             -configuration Release \
             -sdk iphoneos \
-            -archivePath "$PWD/build/Runner.xcarchive" \
+            -destination 'generic/platform=iOS' \
             -derivedDataPath "$PWD/build/ios_dd" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            SKIP_INSTALL=NO \
-            archive
+            build
           set +x
-          echo "--- xcarchive ---"
-          ls -la build/Runner.xcarchive/Products/Applications/ 2>/dev/null || true
           echo "--- products ---"
           find build/ios_dd/Build/Products -maxdepth 2 -name '*.app' -o -maxdepth 2 -name '*.framework' | head
 
       - name: Package unsigned IPA
         working-directory: app
         run: |
-          APP=build/Runner.xcarchive/Products/Applications/Runner.app
+          APP=$(find build/ios_dd/Build/Products/Release-iphoneos -maxdepth 1 -name 'Runner.app' | head -1)
           echo "APP=$APP"
           test -d "$APP" || { echo "Runner.app not found"; exit 1; }
           rm -rf build/Payload && mkdir -p build/Payload
