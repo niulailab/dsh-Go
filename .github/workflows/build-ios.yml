@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: List available Xcodes
+        run: ls -d /Applications/Xcode*.app 2>/dev/null || true
+
       - name: Verify Xcode
         run: xcodebuild -version
 
