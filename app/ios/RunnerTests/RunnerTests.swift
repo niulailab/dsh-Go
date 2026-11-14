@@ -1,12 +1,13 @@
 import Flutter
+import Testing
 import UIKit
-import XCTest
 
-class RunnerTests: XCTestCase {
+struct RunnerTests {
 
-  func testLaunch() throws {
-    // 冒烟测试：Runner 目标可被链接。
-    // UI 级测试需在真机/模拟器上补充。
+  func testExample() {
+    // If you add code to the Runner application, consider adding tests here.
+    // See https://developer.apple.com/xcode/swift-testing/ for more information about using
+    // Swift Testing.
   }
 
 }
