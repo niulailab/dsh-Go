@@ -5,8 +5,8 @@ import XCTest
 class RunnerTests: XCTestCase {
 
   func testLaunch() throws {
-    // 冒烟测试：验证 Runner 可以被实例化
-    // 真正的 UI 测试需要后续补充
+    // 冒烟测试：Runner 目标可被链接。
+    // UI 级测试需在真机/模拟器上补充。
   }
 
 }
