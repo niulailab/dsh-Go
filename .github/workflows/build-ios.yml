@@ -46,29 +46,32 @@ jobs:
           flutter build ios --release --no-codesign --config-only \
             --build-name=1.0.12 --build-number=${{ github.run_number }} || true
 
-          # 2) xcodebuild 直接构建（Flutter 自身的签名检查会误判，绕过）
+          # 2) 用 archive 构建（archive 不走 destination 解析，避免
+          #    "iOS 18.2 is not installed" 的平台运行时检查）
           set -x
           xcodebuild -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
             -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build/ios_dd \
+            -archivePath "$PWD/build/Runner.xcarchive" \
+            -derivedDataPath "$PWD/build/ios_dd" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE_SPECIFIER="" \
-            build
+            SKIP_INSTALL=NO \
+            archive
           set +x
+          echo "--- xcarchive ---"
+          ls -la build/Runner.xcarchive/Products/Applications/ 2>/dev/null || true
           echo "--- products ---"
           find build/ios_dd/Build/Products -maxdepth 2 -name '*.app' -o -maxdepth 2 -name '*.framework' | head
 
       - name: Package unsigned IPA
         working-directory: app
         run: |
-          APP=$(find build/ios_dd/Build/Products/Release-iphoneos -maxdepth 1 -name 'Runner.app' | head -1)
-          [ -n "$APP" ] || APP=build/ios/iphoneos/Runner.app
+          APP=build/Runner.xcarchive/Products/Applications/Runner.app
           echo "APP=$APP"
           test -d "$APP" || { echo "Runner.app not found"; exit 1; }
           rm -rf build/Payload && mkdir -p build/Payload
