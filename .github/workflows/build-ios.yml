@@ -20,6 +20,12 @@ jobs:
       - name: Verify Xcode
         run: xcodebuild -version
 
+      - name: Install iOS platform SDK
+        run: |
+          # Xcode 16 起 iOS 平台包不再随 Xcode 预装只需按需下载
+          sudo xcodebuild -downloadPlatform iOS || sudo xcodebuild -downloadPlatform iOS
+          xcodebuild -showsdks | grep -i iphoneos || true
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
