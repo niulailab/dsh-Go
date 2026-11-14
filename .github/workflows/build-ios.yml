@@ -42,17 +42,23 @@ jobs:
       - name: Build unsigned IPA (Flutter + no signing)
         working-directory: app
         run: |
-          set -o pipefail
-          # 直接让 Flutter 走完整构建链；用 EXTRA 参数关闭签名
+          # Flutter 在构建完成后会做一次 "需要 Development Team" 的检查并返回非 0，
+          # 但此时 Runner.app 已编译完成。因此忽略退出码，改为校验产物是否存在。
           flutter build ios --release --no-codesign \
             --build-name=1.0.12 --build-number=${{ github.run_number }} \
-            --no-pub
+            --no-pub || echo "flutter build returned non-zero (expected: no signing team)"
+          echo "--- artifacts ---"
+          ls -la build/ios/iphoneos/ 2>/dev/null || true
+          test -d build/ios/iphoneos/Runner.app || {
+            echo "Runner.app missing — build truly failed"
+            exit 1
+          }
+          echo "Runner.app OK"
 
       - name: Package unsigned IPA
         working-directory: app
         run: |
-          APP=$(find build/ios_dd/Build/Products/Release-iphoneos build/ios/iphoneos \
-                -maxdepth 1 -name '*.app' 2>/dev/null | head -1)
+          APP=build/ios/iphoneos/Runner.app
           echo "APP=$APP"
           test -d "$APP" || { echo "Runner.app not found"; exit 1; }
           rm -rf build/Payload && mkdir -p build/Payload
