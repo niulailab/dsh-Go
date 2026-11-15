@@ -67,13 +67,15 @@ class SshHostLink implements HostLink {
     Stream<void>? kicks,
     Backoff? backoff,
     this.remoteEnvironment = const {},
-    this.keepAliveInterval = const Duration(seconds: 15),
+    this.keepAliveInterval = const Duration(seconds: 30),
     this.keepAliveTimeout = const Duration(seconds: 10),
     this.tunnelProbeTimeout = const Duration(seconds: 10),
     this.retryFirstOpen = true,
   }) : _transportFactory = transportFactory ?? DartSshTransport.connect,
        _connectClient = connectClient ?? _defaultConnector,
-       _backoff = backoff ?? Backoff() {
+       // 修复：后台挂起后 SSH socket 被系统杀掉，退避耗尽会永久停在 failed，
+       // 切回前台也救不回来。改为无限重试（上限 30s 间隔）。
+       _backoff = backoff ?? Backoff(maxAttempts: null) {
     _kickSub = kicks?.listen((_) => kick());
   }
 
@@ -531,7 +533,13 @@ class SshHostLink implements HostLink {
         _backoff.reset();
         _delay.skip();
       case HostLinkPhase.failed:
-        if (_status.error?.retryable ?? false) retry();
+        // 修复：单次 retry() 若刚好在网络未恢复的瞬间失败，就又回到 failed，
+        // 表现为"点重试没反应"。改回重新进入 _recover 退避循环（无限重试）。
+        if (_status.error?.retryable ?? false) {
+          _backoff.reset();
+          _recovering = false;
+          unawaited(_recover(_status.error!).then((_) {}, onError: (_) {}));
+        }
       case HostLinkPhase.idle || HostLinkPhase.connecting:
         break;
     }
